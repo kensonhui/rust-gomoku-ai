@@ -1,4 +1,4 @@
-use std::{cmp::{max, min}, collections::HashMap};
+use std::{cmp::{max, min, Ordering}, collections::HashMap};
 use itertools::Itertools;
 
 pub const BOARD_HEIGHT : usize = 8;
@@ -7,6 +7,7 @@ pub const WIN_DIRECTIONS : [[i32 ; 2] ; 4 ] =
     [[0, 1], [1, 0], [1, 1], [1, -1]];
 pub const WINNING_LENGTH : i32 = 5;
 
+#[derive(Clone, PartialEq, Eq)]
 pub enum Turn {
     X,
     O
@@ -21,6 +22,7 @@ impl Turn {
     }
 }
 
+#[derive(Clone)]
 pub struct TicTacToeBoard {
     pub board: Vec<Vec<char>>,
     pub turn: Turn,
@@ -44,18 +46,24 @@ impl TicTacToeBoard {
         }
     }
 
+    pub fn valid_move(&self, row: usize, col: usize) -> bool {
+        return self.board[row][col] == ' ' && !self.terminated;
+    }
+
     pub fn make_move(&mut self, row: usize, col: usize) -> bool {
         // Places the current player's piece at (row, col) and checks for a win
         // if a win has occurred, then update the board state
-        // returns whether the move succeeded
+        // returns whether the game is over
+        if self.terminated {
+            panic!("Game already terminated!");
+        }
 
         if self.board[row][col] != ' ' {
-            return false
+            panic!("Invalid move on {}, {}", row + 1, col + 1);
         }
         self.board[row][col] = self.turn.to_char();
 
         if self.check_win(row, col) {
-            print!("Player {} wins!", self.turn.to_char());
             self.terminated = true;
             return true;
         }
@@ -64,7 +72,7 @@ impl TicTacToeBoard {
             Turn::X => Turn::O,
             Turn::O => Turn::X
         };
-        true
+        false
     }
 
     pub fn avaliable_moves(&self) -> Vec<(usize, usize)> {
@@ -115,13 +123,70 @@ pub fn build_tictactoeboard() -> TicTacToeBoard {
 }
 pub trait TicTacToeBot {
     fn heuristic(&self, state: &TicTacToeBoard) -> i32;
-    //fn choose_move(state: &TicTacToeBoard) -> (i32, i32);
+    fn turn(&self) -> &Turn;
+    fn build_node(&self, node: & mut MinMaxNode, 
+        state: &TicTacToeBoard, depth: i32, 
+        role: MinMaxNodeRole) {
+        if depth == 0 {
+            node.score = self.heuristic(state);
+            return;
+        }
+        let possible_moves = state.avaliable_moves();
+        for (row, col) in possible_moves {
+            let mut copy_board : TicTacToeBoard = state.clone();
+            copy_board.make_move(row, col);
+            let mut child_node = 
+                MinMaxNode { children: HashMap::new(), 
+                    score: match role {
+                        MinMaxNodeRole::Maximizer => i32::MAX,
+                        MinMaxNodeRole::Minimizer => i32::MIN
+                    }, 
+                    best_move: (BOARD_HEIGHT, BOARD_WIDTH) };
+            if copy_board.terminated {
+                if copy_board.turn == *self.turn() {
+                    child_node.score = i32::MAX;
+                } else {
+                    child_node.score = i32::MIN;
+                }
+            } else {
+                self.build_node(&mut child_node, &copy_board, depth - 1, 
+                    match role {
+                            MinMaxNodeRole::Maximizer => MinMaxNodeRole::Minimizer,
+                            MinMaxNodeRole::Minimizer => MinMaxNodeRole::Maximizer});
+            }
+            node.children.insert((row, col), child_node);
+        }
+
+        let acc_function = match role {
+            MinMaxNodeRole::Maximizer => Ordering::Greater,
+            _ => Ordering::Less
+        };
+        
+        for (action, child) in node.children.iter() {
+            //print!(" - ({}, {}) -> {}\n", action.0 + 1, action.1 + 1, child.score);
+            let comparison = child.score.cmp(&node.score);
+            if comparison == acc_function || comparison == Ordering::Equal {
+                    node.score = child.score;
+                    node.best_move = *action;
+            }
+        };
+    }
+    fn make_move (&self, state: &TicTacToeBoard, depth: i32) -> ((usize, usize), i32) {
+        let mut root_node = MinMaxNode{
+            children: HashMap::new(),
+            score: i32::MIN,
+            best_move: (BOARD_HEIGHT, BOARD_WIDTH)
+        };
+        self.build_node(&mut root_node, state, depth, MinMaxNodeRole::Maximizer);
+        return (root_node.best_move, root_node.score);
+    }
 }
 pub struct SimpleBot {
     pub turn: Turn
 }
 
-fn running_count(player: char, item: char, count: &mut i32, max_count: &mut i32, min_count: &mut i32) {
+fn running_count(player: char, item: char, count: &mut i32, 
+    max_count: &mut i32, min_count: &mut i32) {
     if item == player {
         *count = max(*count, 0);
         *count += 1;
@@ -136,16 +201,28 @@ fn running_count(player: char, item: char, count: &mut i32, max_count: &mut i32,
 }
 
 impl TicTacToeBot for SimpleBot {
+    fn turn(&self) -> &Turn {
+        return &self.turn
+    }
     fn heuristic(&self, state: &TicTacToeBoard) -> i32 {
         let mut max_count = 0;
         let mut min_count = 0;
         let player = self.turn.to_char();
 
+        if state.terminated {
+            if state.turn == self.turn {
+                return i32::MAX;
+            } else {
+                return i32::MIN;
+            }
+        }
+
         for row in &state.board {
             let mut count = 0;
             for item in row {
                 let item = *item;
-                running_count(player, item, &mut count, &mut max_count, &mut min_count);
+                running_count(player, item, &mut count, 
+                    &mut max_count, &mut min_count);
             }
         }
 
@@ -183,18 +260,22 @@ impl TicTacToeBot for SimpleBot {
                     running_count(player, item, &mut count, &mut max_count, &mut min_count);
                 }
         }
-        print!{"Max count {max_count}, Min count {min_count}"};
         return max_count + min_count;
     }
 }
 
-enum MinMaxNodeRole {
+pub enum MinMaxNodeRole {
     Maximizer,
     Minimizer
 }
-struct MinMaxNode {
+pub struct MinMaxNode {
     children: HashMap<(usize, usize), MinMaxNode>,
-    role: MinMaxNodeRole
+    score: i32,
+    best_move: (usize, usize)
+}
+
+impl MinMaxNode {
+    
 }
 
 #[cfg(test)]
