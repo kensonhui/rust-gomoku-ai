@@ -51,10 +51,11 @@ fn main() {
         }
 
         let now = Instant::now();
-        let ((bot_row, bot_col), ai_score) = simple.make_move(&tictactoe, 3);
+        let ((bot_row, bot_col), ai_score, states_evaluated) = 
+            simple.make_move(&tictactoe, 3);
         let elapsed = now.elapsed();
        
-        print!("Simple heuristic {}, time: {:.2?}\n", ai_score, elapsed);
+        print!("Heuristic: {}, States Evaluated: {}, Time: {:.2?}\n", ai_score, states_evaluated, elapsed);
         if tictactoe.make_move(bot_row, bot_col) {
             print!("You lose!");
             tictactoe.print_board();

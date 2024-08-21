@@ -129,6 +129,7 @@ pub trait TicTacToeBot {
         role: MinMaxNodeRole) {
         if depth == 0 {
             node.score = self.heuristic(state);
+            node.states_evaluated = 1;
             return;
         }
         let possible_moves = state.avaliable_moves();
@@ -141,6 +142,7 @@ pub trait TicTacToeBot {
                         MinMaxNodeRole::Maximizer => i32::MAX,
                         MinMaxNodeRole::Minimizer => i32::MIN
                     }, 
+                    states_evaluated: 0,
                     best_move: (BOARD_HEIGHT, BOARD_WIDTH) };
             if copy_board.terminated {
                 if copy_board.turn == *self.turn() {
@@ -161,6 +163,12 @@ pub trait TicTacToeBot {
             MinMaxNodeRole::Maximizer => Ordering::Greater,
             _ => Ordering::Less
         };
+
+
+        let min_max_value = match role {
+            MinMaxNodeRole::Maximizer => i32::MAX,
+            _ => i32::MIN
+        };
         
         for (action, child) in node.children.iter() {
             //print!(" - ({}, {}) -> {}\n", action.0 + 1, action.1 + 1, child.score);
@@ -169,16 +177,24 @@ pub trait TicTacToeBot {
                     node.score = child.score;
                     node.best_move = *action;
             }
+            node.states_evaluated += child.states_evaluated;
+            if child.score == min_max_value {
+                break;
+            }
         };
+
+        // once node's scores are evaluated, we can free memory
+        node.children.clear();
     }
-    fn make_move (&self, state: &TicTacToeBoard, depth: i32) -> ((usize, usize), i32) {
+    fn make_move (&self, state: &TicTacToeBoard, depth: i32) -> ((usize, usize), i32, u32) {
         let mut root_node = MinMaxNode{
             children: HashMap::new(),
             score: i32::MIN,
-            best_move: (BOARD_HEIGHT, BOARD_WIDTH)
+            best_move: (BOARD_HEIGHT, BOARD_WIDTH),
+            states_evaluated: 0
         };
         self.build_node(&mut root_node, state, depth, MinMaxNodeRole::Maximizer);
-        return (root_node.best_move, root_node.score);
+        return (root_node.best_move, root_node.score, root_node.states_evaluated);
     }
 }
 pub struct SimpleBot {
@@ -271,7 +287,8 @@ pub enum MinMaxNodeRole {
 pub struct MinMaxNode {
     children: HashMap<(usize, usize), MinMaxNode>,
     score: i32,
-    best_move: (usize, usize)
+    best_move: (usize, usize),
+    states_evaluated: u32
 }
 
 impl MinMaxNode {
