@@ -1,7 +1,7 @@
 use std::io::{self, Write};
 use minmax_bots::{BOARD_HEIGHT, TicTacToeBot};
 
-fn read_char(msg: &str) -> i32 {
+fn read_char(msg: &str) -> usize {
     print!("{}", msg);
     loop {
         io::stdout().flush().unwrap();
@@ -12,11 +12,11 @@ fn read_char(msg: &str) -> i32 {
 
         match line.trim().parse::<i32>() {
             Ok(num) => {
-                if num > BOARD_HEIGHT || num < 0 {
+                if num > BOARD_HEIGHT as i32 || num < 0 {
                     print!("Number is out of bounds, try again, got {num} \n");
                     print!("{}", msg);
                 } else {
-                    return num;
+                    return num.try_into().unwrap();
                 }
             },
             _ => {
@@ -27,19 +27,19 @@ fn read_char(msg: &str) -> i32 {
     }
 }
 
-fn read_move() -> (i32, i32) {
-    let row : i32 = read_char( "Type which row to insert into\n");
-    let col : i32 = read_char( "Type what column to insert into\n");
+fn read_move() -> (usize, usize) {
+    let row : usize = read_char( "Type which row to insert into\n");
+    let col : usize = read_char( "Type what column to insert into\n");
     return (row - 1, col - 1);
 }
 
 fn main() {
     let mut tictactoe = minmax_bots::build_tictactoeboard();
-    let simple = minmax_bots::SimpleBot{};
+    let simple = minmax_bots::SimpleBot{turn: minmax_bots::Turn::X};
     loop {
         tictactoe.print_board();
         let (row, col) = read_move();
-        if !tictactoe.make_move(&row, &col) {
+        if !tictactoe.make_move(row.try_into().unwrap(), col.try_into().unwrap()) {
             print!("Spot has already been taken, try again!\n");
         }
         print!("Simple Heuristic {}\n", simple.heuristic(&tictactoe));

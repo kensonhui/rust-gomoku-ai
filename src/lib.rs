@@ -1,8 +1,8 @@
 use std::{cmp::{max, min}, collections::HashMap};
 use itertools::Itertools;
 
-pub const BOARD_HEIGHT : i32 = 8;
-pub const BOARD_WIDTH : i32 = 8;
+pub const BOARD_HEIGHT : usize = 8;
+pub const BOARD_WIDTH : usize = 8;
 pub const WIN_DIRECTIONS : [[i32 ; 2] ; 4 ] = 
     [[0, 1], [1, 0], [1, 1], [1, -1]];
 pub const WINNING_LENGTH : i32 = 5;
@@ -44,12 +44,10 @@ impl TicTacToeBoard {
         }
     }
 
-    pub fn make_move(&mut self, row: &i32, col: &i32) -> bool {
+    pub fn make_move(&mut self, row: usize, col: usize) -> bool {
         // Places the current player's piece at (row, col) and checks for a win
         // if a win has occurred, then update the board state
         // returns whether the move succeeded
-        let row : usize = *row as usize;
-        let col: usize = *col as usize;
 
         if self.board[row][col] != ' ' {
             return false
@@ -83,16 +81,14 @@ impl TicTacToeBoard {
     }
 
     fn check_win(&self, row: usize, col: usize) -> bool {
-        let row : i32 = row as i32;
-        let col : i32 = col as i32;
         for [up, right] in WIN_DIRECTIONS{
             let mut count = 1;
             let last_move = self.turn.to_char();
             for direction in [1, -1] {
                 for i in 1..WINNING_LENGTH {
-                    let check_y = row + up * i * direction;
-                    let check_x = col + right * i * direction;
-                    if check_y < 0 || check_y >= BOARD_HEIGHT || check_x < 0 || check_x >= BOARD_WIDTH {
+                    let check_y: i32 = row as i32 + up * i * direction;
+                    let check_x: i32 = col as i32 + right * i * direction;
+                    if check_y < 0 || check_y >= BOARD_HEIGHT as i32 || check_x < 0 || check_x >= BOARD_WIDTH as i32 {
                         break;
                     }
                     if self.board[usize::try_from(check_y).unwrap()][usize::try_from(check_x).unwrap()] == last_move {
@@ -121,7 +117,9 @@ pub trait TicTacToeBot {
     fn heuristic(&self, state: &TicTacToeBoard) -> i32;
     //fn choose_move(state: &TicTacToeBoard) -> (i32, i32);
 }
-pub struct SimpleBot {}
+pub struct SimpleBot {
+    pub turn: Turn
+}
 
 fn running_count(player: char, item: char, count: &mut i32, max_count: &mut i32, min_count: &mut i32) {
     if item == player {
@@ -141,7 +139,7 @@ impl TicTacToeBot for SimpleBot {
     fn heuristic(&self, state: &TicTacToeBoard) -> i32 {
         let mut max_count = 0;
         let mut min_count = 0;
-        let player = state.turn.to_char();
+        let player = self.turn.to_char();
 
         for row in &state.board {
             let mut count = 0;
