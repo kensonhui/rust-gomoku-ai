@@ -1,4 +1,4 @@
-use std::cmp::{max, min};
+use std::{cmp::{max, min}, collections::HashMap};
 use itertools::Itertools;
 
 pub const BOARD_HEIGHT : i32 = 8;
@@ -46,8 +46,11 @@ impl TicTacToeBoard {
 
     pub fn make_move(&mut self, row: &i32, col: &i32) -> bool {
         // Places the current player's piece at (row, col) and checks for a win
+        // if a win has occurred, then update the board state
+        // returns whether the move succeeded
         let row : usize = *row as usize;
         let col: usize = *col as usize;
+
         if self.board[row][col] != ' ' {
             return false
         }
@@ -64,6 +67,19 @@ impl TicTacToeBoard {
             Turn::O => Turn::X
         };
         true
+    }
+
+    pub fn avaliable_moves(&self) -> Vec<(usize, usize)> {
+        // Returns a vector of all possible moves
+        let mut moves: Vec<(usize, usize)> = Vec::new();
+        for (i, row) in self.board.iter().enumerate() {
+            for (j, item) in row.iter().enumerate() {
+                if *item == ' ' {
+                    moves.push((i, j));
+                }
+            }
+        }
+        return moves;
     }
 
     fn check_win(&self, row: usize, col: usize) -> bool {
@@ -105,7 +121,7 @@ pub trait TicTacToeBot {
     fn heuristic(&self, state: &TicTacToeBoard) -> i32;
     //fn choose_move(state: &TicTacToeBoard) -> (i32, i32);
 }
-pub struct Simple {}
+pub struct SimpleBot {}
 
 fn running_count(player: char, item: char, count: &mut i32, max_count: &mut i32, min_count: &mut i32) {
     if item == player {
@@ -121,7 +137,7 @@ fn running_count(player: char, item: char, count: &mut i32, max_count: &mut i32,
     }
 }
 
-impl TicTacToeBot for Simple {
+impl TicTacToeBot for SimpleBot {
     fn heuristic(&self, state: &TicTacToeBoard) -> i32 {
         let mut max_count = 0;
         let mut min_count = 0;
@@ -171,5 +187,25 @@ impl TicTacToeBot for Simple {
         }
         print!{"Max count {max_count}, Min count {min_count}"};
         return max_count + min_count;
+    }
+}
+
+enum MinMaxNodeRole {
+    Maximizer,
+    Minimizer
+}
+struct MinMaxNode {
+    children: HashMap<(usize, usize), MinMaxNode>,
+    role: MinMaxNodeRole
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn empty_board() {
+        let tictactoe = build_tictactoeboard();
+        assert_eq!(tictactoe.avaliable_moves().len(), (BOARD_WIDTH * BOARD_HEIGHT).try_into().unwrap());
     }
 }
