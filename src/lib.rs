@@ -24,7 +24,7 @@ impl Turn {
 
 #[derive(Clone)]
 pub struct TicTacToeBoard {
-    pub board: Vec<Vec<char>>,
+    board: Vec<Vec<char>>,
     pub turn: Turn,
     pub terminated: bool,
 }
@@ -111,6 +111,10 @@ impl TicTacToeBoard {
             }
         }
         false
+    }
+
+    pub fn get_at(&self, row: usize, col: usize) -> char {
+        self.board[row][col]
     }
 }
 
@@ -233,10 +237,10 @@ impl TicTacToeBot for SimpleBot {
             }
         }
 
-        for row in &state.board {
+        for row in 0..BOARD_HEIGHT {
             let mut count = 0;
-            for item in row {
-                let item = *item;
+            for col in 0..BOARD_WIDTH {
+                let item = state.get_at(row, col);
                 running_count(player, item, &mut count, 
                     &mut max_count, &mut min_count);
             }
@@ -247,7 +251,7 @@ impl TicTacToeBot for SimpleBot {
             let mut count = 0;
             for row in 0..BOARD_HEIGHT {
                 let row : usize = row.try_into().unwrap();
-                let item : char = state.board[row][col];
+                let item : char = state.get_at(row, col);
                 running_count(player, item, &mut count, &mut max_count, &mut min_count);
             }
         }
@@ -259,7 +263,7 @@ impl TicTacToeBot for SimpleBot {
                     let row : usize = row.try_into().unwrap();
                     let col : usize = col.try_into().unwrap();
                     let i : usize = i.try_into().unwrap();
-                    let item = state.board[row + i][col + i];
+                    let item = state.get_at(row + i, col + i);
                     running_count(player, item, &mut count, &mut max_count, &mut min_count);
                 }
         }
@@ -272,7 +276,7 @@ impl TicTacToeBot for SimpleBot {
                     let i : usize = i.try_into().unwrap();
                     let row : usize = row.try_into().unwrap();
                     let col : usize = col.try_into().unwrap();
-                    let item = state.board[row - i][col + i];
+                    let item = state.get_at(row - i, col + i);
                     running_count(player, item, &mut count, &mut max_count, &mut min_count);
                 }
         }
@@ -292,7 +296,23 @@ pub struct MinMaxNode {
 }
 
 impl MinMaxNode {
-    
+    fn pretty_print_node(&self, depth: usize, action: (usize, usize)) {
+        let indent = "  ".repeat(depth);
+        let action_str = format!("({}, {})", action.0 + 1, action.1 + 1);
+        println!("{}{}: score = {}, evaluated = {}", indent, action_str, self.score, self.states_evaluated);
+        
+        for (&(row, col), child) in &self.children {
+            child.pretty_print_node(depth + 1, (row, col));
+        }
+    } 
+   fn pretty_print(&self, depth: usize) {
+        let indent = "  ".repeat(depth);
+        println!("{}: score = {}, evaluated = {}", indent, self.score, self.states_evaluated);
+        
+        for (&(row, col), child) in &self.children {
+            child.pretty_print_node(depth + 1, (row, col));
+        }
+    } 
 }
 
 #[cfg(test)]
