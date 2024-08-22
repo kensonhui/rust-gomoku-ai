@@ -1,6 +1,6 @@
 use std::io::{self, Write};
 use std::time::Instant;
-use minmax_bots::{BOARD_HEIGHT, TicTacToeBot};
+use minmax_bots::{BOARD_WIDTH, TicTacToeBot};
 
 fn read_char(msg: &str) -> usize {
     print!("{}", msg);
@@ -13,7 +13,7 @@ fn read_char(msg: &str) -> usize {
 
         match line.trim().parse::<i32>() {
             Ok(num) => {
-                if num > BOARD_HEIGHT as i32 || num < 0 {
+                if num > BOARD_WIDTH as i32 || num < 0 {
                     print!("Number is out of bounds, try again, got {num} \n");
                     print!("{}", msg);
                 } else {

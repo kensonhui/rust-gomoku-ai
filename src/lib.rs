@@ -1,7 +1,6 @@
 use std::{cmp::{max, min, Ordering}, collections::HashMap};
 use itertools::Itertools;
 
-pub const BOARD_HEIGHT : usize = 8;
 pub const BOARD_WIDTH : usize = 8;
 pub const WIN_DIRECTIONS : [[i32 ; 2] ; 4 ] = 
     [[0, 1], [1, 0], [1, 1], [1, -1]];
@@ -96,7 +95,7 @@ impl TicTacToeBoard {
                 for i in 1..WINNING_LENGTH {
                     let check_y: i32 = row as i32 + up * i * direction;
                     let check_x: i32 = col as i32 + right * i * direction;
-                    if check_y < 0 || check_y >= BOARD_HEIGHT as i32 || check_x < 0 || check_x >= BOARD_WIDTH as i32 {
+                    if check_y < 0 || check_y >= BOARD_WIDTH as i32 || check_x < 0 || check_x >= BOARD_WIDTH as i32 {
                         break;
                     }
                     if self.board[usize::try_from(check_y).unwrap()][usize::try_from(check_x).unwrap()] == last_move {
@@ -120,7 +119,7 @@ impl TicTacToeBoard {
 
 pub fn build_tictactoeboard() -> TicTacToeBoard {
     TicTacToeBoard {
-        board: vec![vec![' '; BOARD_WIDTH as usize]; BOARD_HEIGHT as usize],
+        board: vec![vec![' '; BOARD_WIDTH as usize]; BOARD_WIDTH as usize],
         turn: Turn::X,
         terminated: false
     }
@@ -147,7 +146,7 @@ pub trait TicTacToeBot {
                         MinMaxNodeRole::Minimizer => i32::MIN
                     }, 
                     states_evaluated: 0,
-                    best_move: (BOARD_HEIGHT, BOARD_WIDTH) };
+                    best_move: (BOARD_WIDTH, BOARD_WIDTH) };
             if copy_board.terminated {
                 if copy_board.turn == *self.turn() {
                     child_node.score = i32::MAX;
@@ -194,7 +193,7 @@ pub trait TicTacToeBot {
         let mut root_node = MinMaxNode{
             children: HashMap::new(),
             score: i32::MIN,
-            best_move: (BOARD_HEIGHT, BOARD_WIDTH),
+            best_move: (BOARD_WIDTH, BOARD_WIDTH),
             states_evaluated: 0
         };
         self.build_node(&mut root_node, state, depth, MinMaxNodeRole::Maximizer);
@@ -237,7 +236,7 @@ impl TicTacToeBot for SimpleBot {
             }
         }
 
-        for row in 0..BOARD_HEIGHT {
+        for row in 0..BOARD_WIDTH {
             let mut count = 0;
             for col in 0..BOARD_WIDTH {
                 let item = state.get_at(row, col);
@@ -249,17 +248,17 @@ impl TicTacToeBot for SimpleBot {
         for col in 0..BOARD_WIDTH {
             let col : usize = col.try_into().unwrap();
             let mut count = 0;
-            for row in 0..BOARD_HEIGHT {
+            for row in 0..BOARD_WIDTH {
                 let row : usize = row.try_into().unwrap();
                 let item : char = state.get_at(row, col);
                 running_count(player, item, &mut count, &mut max_count, &mut min_count);
             }
         }
 
-        for (row, col) in (0..BOARD_HEIGHT).cartesian_product(0..1)
+        for (row, col) in (0..BOARD_WIDTH).cartesian_product(0..1)
             .chain((0..1).cartesian_product(0..BOARD_WIDTH)) {
                 let mut count = 0;
-                for i in 0..min(BOARD_HEIGHT - row - 1, BOARD_WIDTH- col - 1) {
+                for i in 0..min(BOARD_WIDTH - row - 1, BOARD_WIDTH- col - 1) {
                     let row : usize = row.try_into().unwrap();
                     let col : usize = col.try_into().unwrap();
                     let i : usize = i.try_into().unwrap();
@@ -268,9 +267,9 @@ impl TicTacToeBot for SimpleBot {
                 }
         }
 
-        for (row, col) in (BOARD_HEIGHT - 1..BOARD_HEIGHT)
+        for (row, col) in (BOARD_WIDTH - 1..BOARD_WIDTH)
             .cartesian_product(BOARD_WIDTH - 1..BOARD_WIDTH)
-            .chain((0..BOARD_HEIGHT).cartesian_product(0..1)) {
+            .chain((0..BOARD_WIDTH).cartesian_product(0..1)) {
                 let mut count = 0;
                 for i in 0..min(row + 1, BOARD_WIDTH - col - 1) {
                     let i : usize = i.try_into().unwrap();
@@ -322,6 +321,6 @@ mod tests {
     #[test]
     fn empty_board() {
         let tictactoe = build_tictactoeboard();
-        assert_eq!(tictactoe.avaliable_moves().len(), (BOARD_WIDTH * BOARD_HEIGHT).try_into().unwrap());
+        assert_eq!(tictactoe.avaliable_moves().len(), (BOARD_WIDTH * BOARD_WIDTH).try_into().unwrap());
     }
 }
