@@ -52,7 +52,7 @@ fn main() {
 
         let now = Instant::now();
         let ((bot_row, bot_col), ai_score, states_evaluated) = 
-            simple.make_move(&tictactoe, 3);
+            simple.make_move(&tictactoe, 4);
         let elapsed = now.elapsed();
        
         print!("Heuristic: {}, States Evaluated: {}, Time: {:.2?}\n", ai_score, states_evaluated, elapsed);
