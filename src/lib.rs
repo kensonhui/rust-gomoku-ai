@@ -179,11 +179,19 @@ pub trait TicTacToeBot {
     fn turn(&self) -> &Turn;
     fn build_node(&self, node: & mut MinMaxNode, 
         state: &TicTacToeBoard, depth: i32, 
-        role: MinMaxNodeRole) {
+        role: MinMaxNodeRole, mut alpha: i32, mut beta: i32) {
         if depth == 0 {
             node.score = self.heuristic(state);
             node.states_evaluated = 1;
             return;
+        }
+        if state.terminated {
+            if *self.turn() == state.turn {
+                node.score = i32::MAX;
+            } else {
+                node.score = i32::MIN;
+            }
+            node.states_evaluated = 1;
         }
         let possible_moves = state.avaliable_moves();
         for (row, col) in possible_moves {
@@ -197,44 +205,29 @@ pub trait TicTacToeBot {
                     }, 
                     states_evaluated: 0,
                     best_move: (BOARD_WIDTH, BOARD_WIDTH) };
-            if copy_board.terminated {
-                if copy_board.turn == *self.turn() {
-                    child_node.score = i32::MAX;
-                } else {
-                    child_node.score = i32::MIN;
-                }
-            } else {
-                self.build_node(&mut child_node, &copy_board, depth - 1, 
-                    match role {
-                            MinMaxNodeRole::Maximizer => MinMaxNodeRole::Minimizer,
-                            MinMaxNodeRole::Minimizer => MinMaxNodeRole::Maximizer});
+            self.build_node(&mut child_node, &copy_board, depth - 1, 
+                match role {
+                        MinMaxNodeRole::Maximizer => MinMaxNodeRole::Minimizer,
+                        MinMaxNodeRole::Minimizer => MinMaxNodeRole::Maximizer,
+                    }, alpha, beta);
+            node.states_evaluated += child_node.states_evaluated;
+            match role {
+               MinMaxNodeRole::Maximizer => {
+                node.score = max(child_node.score, node.score);
+                alpha = max(alpha, node.score);
+                },
+               MinMaxNodeRole::Minimizer => {
+                node.score = min(child_node.score, node.score);
+                beta = min(node.score, beta);
+               }
             }
-            node.children.insert((row, col), child_node);
-        }
+    
+            node.best_move = (row, col);
 
-        let acc_function = match role {
-            MinMaxNodeRole::Maximizer => Ordering::Greater,
-            _ => Ordering::Less
-        };
-
-
-        let min_max_value = match role {
-            MinMaxNodeRole::Maximizer => i32::MAX,
-            _ => i32::MIN
-        };
-        
-        for (action, child) in node.children.iter() {
-            //print!(" - ({}, {}) -> {}\n", action.0 + 1, action.1 + 1, child.score);
-            let comparison = child.score.cmp(&node.score);
-            if comparison == acc_function || comparison == Ordering::Equal {
-                    node.score = child.score;
-                    node.best_move = *action;
-            }
-            node.states_evaluated += child.states_evaluated;
-            if child.score == min_max_value {
+            if beta <= alpha {
                 break;
             }
-        };
+        }
 
         // once node's scores are evaluated, we can free memory
         node.children.clear();
@@ -246,7 +239,8 @@ pub trait TicTacToeBot {
             best_move: (BOARD_WIDTH, BOARD_WIDTH),
             states_evaluated: 0
         };
-        self.build_node(&mut root_node, state, depth, MinMaxNodeRole::Maximizer);
+        self.build_node(&mut root_node, state, depth, MinMaxNodeRole::Maximizer,
+            i32::MIN, i32::MAX);
         return (root_node.best_move, root_node.score, root_node.states_evaluated);
     }
 }
