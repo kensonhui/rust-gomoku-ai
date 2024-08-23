@@ -177,89 +177,66 @@ pub fn build_tictactoeboard() -> TicTacToeBoard {
 pub trait TicTacToeBot {
     fn heuristic(&self, state: &TicTacToeBoard) -> i32;
     fn turn(&self) -> &Turn;
-    fn build_node(&self, node: & mut MinMaxNode, 
+    fn minmax(&self, 
         state: &TicTacToeBoard, depth: i32, 
-        role: MinMaxNodeRole, mut alpha: i32, mut beta: i32) {
-        if depth == 0 {
-            node.score = self.heuristic(state);
-            node.states_evaluated = 1;
-            return;
-        }
-        if state.terminated {
-            if *self.turn() == state.turn {
-                node.score = i32::MAX;
-            } else {
-                node.score = i32::MIN;
-            }
-            node.states_evaluated = 1;
+        role: MinMaxNodeRole, mut alpha: i32, mut beta: i32) -> (i32, (usize, usize)) {
+        if depth == 0 || state.terminated {
+            return (self.heuristic(state), (BOARD_WIDTH, BOARD_WIDTH));
         }
         let possible_moves = state.avaliable_moves();
+        let mut score = match role {
+            MinMaxNodeRole::Maximizer => i32::MIN,
+            MinMaxNodeRole::Minimizer => i32::MAX
+        };
+        let mut action = possible_moves[0];
+
         for (row, col) in possible_moves {
             let mut copy_board : TicTacToeBoard = state.clone();
             copy_board.make_move(row, col);
-            let mut child_node = 
-                MinMaxNode { children: HashMap::new(), 
-                    score: match role {
-                        MinMaxNodeRole::Maximizer => i32::MAX,
-                        MinMaxNodeRole::Minimizer => i32::MIN
-                    }, 
-                    states_evaluated: 0,
-                    best_move: (BOARD_WIDTH, BOARD_WIDTH) };
-            self.build_node(&mut child_node, &copy_board, depth - 1, 
+            let (child_score, _)  = self.minmax(
+                &copy_board, depth - 1, 
                 match role {
                         MinMaxNodeRole::Maximizer => MinMaxNodeRole::Minimizer,
                         MinMaxNodeRole::Minimizer => MinMaxNodeRole::Maximizer,
                     }, alpha, beta);
-            node.states_evaluated += child_node.states_evaluated;
             match role {
                MinMaxNodeRole::Maximizer => {
-                node.score = max(child_node.score, node.score);
-                alpha = max(alpha, node.score);
+                    if score < child_score {
+                        action = (row, col);
+                    }
+                    score = max(child_score, score);
+                    alpha = max(alpha, score);
                 },
                MinMaxNodeRole::Minimizer => {
-                node.score = min(child_node.score, node.score);
-                beta = min(node.score, beta);
-               }
+                    if score > child_score {
+                        action = (row, col);
+                    }
+                    score = min(child_score, score);
+                    beta = min(score, beta);
+                }
             }
     
-            node.best_move = (row, col);
-
             if beta <= alpha {
                 break;
             }
         }
-
-        // once node's scores are evaluated, we can free memory
-        node.children.clear();
+        return (score, action);
     }
-    fn make_move (&self, state: &TicTacToeBoard, depth: i32) -> ((usize, usize), i32, u32) {
-        let mut root_node = MinMaxNode{
-            children: HashMap::new(),
-            score: i32::MIN,
-            best_move: (BOARD_WIDTH, BOARD_WIDTH),
-            states_evaluated: 0
-        };
-        self.build_node(&mut root_node, state, depth, MinMaxNodeRole::Maximizer,
-            i32::MIN, i32::MAX);
-        return (root_node.best_move, root_node.score, root_node.states_evaluated);
+    fn make_move (&self, state: &TicTacToeBoard, depth: i32) -> (i32, (usize, usize)) {
+        return self.minmax(state, depth, MinMaxNodeRole::Maximizer, i32::MIN, i32::MAX);
     }
 }
 pub struct SimpleBot {
     pub turn: Turn
 }
 
-fn running_count(player: char, item: char, count: &mut i32, 
-    max_count: &mut i32, min_count: &mut i32) {
+fn running_count(player: char, item: char, count: &mut i32) {
     if item == player {
-        *count = max(*count, 0);
         *count += 1;
-        *max_count = max(*max_count, *count);
     } else if item == ' ' {
         *count = 0;
     } else {
-        *count = min(*count, 0);
         *count -= 1;
-        *min_count = min(*min_count, *count);
     }
 }
 
@@ -268,8 +245,8 @@ impl TicTacToeBot for SimpleBot {
         return &self.turn
     }
     fn heuristic(&self, state: &TicTacToeBoard) -> i32 {
-        let mut max_count = 0;
-        let mut min_count = 0;
+        let mut three_in_a_rows = 0;
+        let mut four_in_a_rows = 0;
         let player = self.turn.to_char();
 
         if state.terminated {
@@ -284,8 +261,12 @@ impl TicTacToeBot for SimpleBot {
             let mut count = 0;
             for col in 0..BOARD_WIDTH {
                 let item = state.get_at(row, col);
-                running_count(player, item, &mut count, 
-                    &mut max_count, &mut min_count);
+                running_count(player, item, &mut count);
+                if count == 3 {
+                    three_in_a_rows += 1;
+                } else if count == -3 {
+                    three_in_a_rows -= 1;
+                }
             }
         }
 
@@ -295,7 +276,12 @@ impl TicTacToeBot for SimpleBot {
             for row in 0..BOARD_WIDTH {
                 let row : usize = row.try_into().unwrap();
                 let item : char = state.get_at(row, col);
-                running_count(player, item, &mut count, &mut max_count, &mut min_count);
+                running_count(player, item, &mut count);
+                if count == 3 {
+                    three_in_a_rows += 1;
+                } else if count == -3 {
+                    three_in_a_rows -= 1;
+                }
             }
         }
 
@@ -307,7 +293,12 @@ impl TicTacToeBot for SimpleBot {
                     let col : usize = col.try_into().unwrap();
                     let i : usize = i.try_into().unwrap();
                     let item = state.get_at(row + i, col + i);
-                    running_count(player, item, &mut count, &mut max_count, &mut min_count);
+                    running_count(player, item, &mut count);
+                    if count == 3 {
+                        three_in_a_rows += 1;
+                    } else if count == -3 {
+                        three_in_a_rows -= 1;
+                    }
                 }
         }
 
@@ -320,10 +311,15 @@ impl TicTacToeBot for SimpleBot {
                     let row : usize = row.try_into().unwrap();
                     let col : usize = col.try_into().unwrap();
                     let item = state.get_at(row - i, col + i);
-                    running_count(player, item, &mut count, &mut max_count, &mut min_count);
+                    running_count(player, item, &mut count);
+                    if count == 3 {
+                        three_in_a_rows += 1;
+                    } else if count == -3 {
+                        three_in_a_rows -= 1;
+                    }
                 }
         }
-        return max_count + min_count;
+        return three_in_a_rows;
     }
 }
 
@@ -332,30 +328,9 @@ pub enum MinMaxNodeRole {
     Minimizer
 }
 pub struct MinMaxNode {
-    children: HashMap<(usize, usize), MinMaxNode>,
     score: i32,
     best_move: (usize, usize),
     states_evaluated: u32
-}
-
-impl MinMaxNode {
-    fn pretty_print_node(&self, depth: usize, action: (usize, usize)) {
-        let indent = "  ".repeat(depth);
-        let action_str = format!("({}, {})", action.0 + 1, action.1 + 1);
-        println!("{}{}: score = {}, evaluated = {}", indent, action_str, self.score, self.states_evaluated);
-        
-        for (&(row, col), child) in &self.children {
-            child.pretty_print_node(depth + 1, (row, col));
-        }
-    } 
-   fn pretty_print(&self, depth: usize) {
-        let indent = "  ".repeat(depth);
-        println!("{}: score = {}, evaluated = {}", indent, self.score, self.states_evaluated);
-        
-        for (&(row, col), child) in &self.children {
-            child.pretty_print_node(depth + 1, (row, col));
-        }
-    } 
 }
 
 #[cfg(test)]
