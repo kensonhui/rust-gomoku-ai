@@ -1,6 +1,6 @@
 use std::io::{self, Write};
 use std::time::Instant;
-use minmax_bots::{BOARD_WIDTH, TicTacToeBot};
+use minmax_bots::minmax::TicTacToeBot;
 
 fn read_char(msg: &str) -> usize {
     print!("{}", msg);
@@ -13,7 +13,7 @@ fn read_char(msg: &str) -> usize {
 
         match line.trim().parse::<i32>() {
             Ok(num) => {
-                if num > BOARD_WIDTH as i32 || num < 0 {
+                if num > minmax_bots::gomoku::BOARD_WIDTH as i32 || num < 0 {
                     print!("Number is out of bounds, try again, got {num} \n");
                     print!("{}", msg);
                 } else {
@@ -35,8 +35,8 @@ fn read_move() -> (usize, usize) {
 }
 
 fn main() {
-    let mut tictactoe = minmax_bots::build_tictactoeboard();
-    let simple = minmax_bots::SimpleBot{turn: minmax_bots::Turn::O};
+    let mut tictactoe = minmax_bots::gomoku::build_tictactoeboard();
+    let simple = minmax_bots::minmax::SimpleBot{turn: minmax_bots::gomoku::Turn::O};
     loop {
         tictactoe.print_board();
         let (row, col) = read_move();
